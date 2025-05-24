@@ -1,0 +1,114 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Laravel Package Development Best Practices and Workflow
+
+This project is a **Laravel package**. All guidelines below are tailored for Laravel package development and should be followed in this context.
+
+## Code Quality and Standards
+
+### Syntax and Style
+- **ALWAYS include `declare(strict_types=1);` as the first statement after the opening `<?php` tag in ALL PHP files**
+- Use type hints and return type declarations
+- Write self-documenting code with clear variable and function names
+- Keep functions and methods small and focused (single responsibility)
+- Use meaningful namespaces that reflect the project structure and Laravel conventions
+- Document all classes, methods, and functions with PHPDoc blocks
+
+### Testing
+- Write unit tests for all new functionality
+- Maintain minimum 80% code coverage
+- Use PHPUnit for testing
+- Use `test_` prefix for all test method names (e.g., `test_user_can_create_post()`)
+- Do NOT use `@test` comment or `#[Test]` attribute for test identification
+- Follow AAA (Arrange-Act-Assert) pattern in tests
+- Mock external dependencies
+- Write both positive and negative test cases
+- Ensure tests are compatible with Laravel's testing tools and conventions
+
+### Code Organization
+- Follow SOLID principles
+- Use dependency injection
+- Implement interfaces for better abstraction
+- Keep classes focused and cohesive
+- Use traits sparingly and only for shared behavior
+- Follow the principle of least knowledge
+- Organize code according to Laravel package structure (e.g., Service Providers, Facades, Contracts, etc.)
+
+## Development Workflow
+
+### Pre-commit Checklist
+For every modification, ensure the following steps are completed in order:
+
+1. Syntax Check
+   ```bash
+   php -l <modified-file>
+   ```
+   - Address any syntax errors before proceeding
+   - Run against all new and modified files
+
+2. Static Analysis
+   ```bash
+   composer analyse
+   ```
+   - Fix any issues reported by the static analyzer
+   - Pay special attention to type safety and potential bugs
+
+3. Testing
+   ```bash
+   composer test
+   ```
+   - Write tests for all new functionality
+   - Ensure existing tests pass
+   - Add tests for edge cases
+   - Only proceed when all tests pass
+
+4. Code Formatting
+   ```bash
+   composer format
+   ```
+   - Run formatting only after all tests pass
+   - Ensure code follows PSR-12 standards
+
+### Version Control
+- Write clear, descriptive commit messages
+- Keep commits focused and atomic
+- Reference issue numbers in commit messages
+- Create feature branches for new development
+- Keep branches up to date with main
+
+### Security
+- Never commit sensitive data
+- Use environment variables for configuration
+- Validate and sanitize all user input
+- Use prepared statements for database queries
+- Implement proper authentication and authorization
+- Follow OWASP security guidelines
+
+### Performance
+- Optimize database queries
+- Use caching where appropriate
+- Implement lazy loading for heavy resources
+- Profile code for bottlenecks
+- Use appropriate data structures
+
+## Documentation
+- Keep README.md up to date
+- Document all configuration options
+- Include setup instructions
+- Document API endpoints
+- Keep inline documentation current
+- Use meaningful commit messages
+- Document Laravel-specific usage and integration
+
+## Dependencies
+- Keep dependencies up to date
+- Use specific version constraints
+- Document all external dependencies
+- Review security advisories regularly
+- Use composer for dependency management
+- Ensure compatibility with supported Laravel versions
+
+Remember: Quality is not an act, it's a habit. Follow these guidelines consistently to maintain high-quality, maintainable Laravel packages.

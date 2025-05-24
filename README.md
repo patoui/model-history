@@ -1,93 +1,208 @@
-# :package_description
+# 📝 Laravel Model History Package
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-<!--delete-->
----
-This repo can be used to scaffold a Laravel package. Follow these steps to get started:
+A Laravel package that allows you to track changes to your Eloquent models (history) in an opt-in fashion. The package provides extensibility, so you can store changes in your preferred storage system.
 
-1. Press the "Use this template" button at the top of this repo to create a new repo with the contents of this skeleton.
-2. Run "php ./configure.php" to run a script that will replace all placeholders throughout all the files.
-3. Have fun creating your package.
-4. If you need help creating a package, consider picking up our <a href="https://laravelpackage.training">Laravel Package Training</a> video course.
----
-<!--/delete-->
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## ✨ Features
 
-## Support us
+- **Opt-in tracking**: Models choose to track changes by using a trait
+- **Tracks creation and updates**: Captures both model creation and modification events
+- **Extensibility**: Use the default Eloquent implementation or create your own
+- **Configurable**: Configuration available for additional control
 
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/:package_name.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/:package_name)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
-
-## Installation
+## 📦 Installation
 
 You can install the package via composer:
 
 ```bash
-composer require :vendor_slug/:package_slug
+composer require patoui/model-history
 ```
 
-You can publish and run the migrations with:
+Optionally, you can publish the config file with:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-migrations"
+php artisan vendor:publish --tag="model-history-config"
+```
+
+Optionally, you can publish and run the migrations with:
+
+```bash
+php artisan vendor:publish --tag="model-history-migrations"
 php artisan migrate
 ```
 
-You can publish the config file with:
+You can publish both config and migrations at once with:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-config"
+php artisan vendor:publish --provider="Patoui\ModelHistory\ModelHistoryServiceProvider"
 ```
 
-This is the contents of the published config file:
+## ⚙️ Configuration
+
+After publishing the config file, you can customize the package behavior by editing `config/model-history.php`.
+
+### 🎯 Customizing the model history
+
+You can customize which model is used for storing changes:
 
 ```php
-return [
-];
+'model' => \App\Models\ModelHistory::class,
 ```
 
-Optionally, you can publish the views using
+### 🚫 Customizing Excluded Properties
+
+You can customize which properties are excluded from the model history by modifying the `exclude_properties` array in your published config file. For example, if you want to also exclude `password` fields and any `_token` fields:
+
+```php
+'exclude_properties' => [
+    'id',
+    'created_at',
+    'updated_at',
+    'deleted_at',
+    'password',
+    'remember_token',
+    '_token',
+],
+```
+
+#### 🔧 Model configuration
+
+You may add an additional property to the model to override the default configuration of excluded properties
+```php
+protected array $modelHistoryExcludedProperties = ['password'];
+```
+
+## 🚀 Usage
+
+### 📚 Basic Usage
+
+To start tracking changes for a model, simply add the `TrackModelHistory` trait and the `TrackModelHistoryContract` interface:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Patoui\ModelHistory\Contracts\TrackModelHistoryContract;
+use Patoui\ModelHistory\Traits\TrackModelHistory;
+
+class User extends Model implements TrackModelHistoryContract
+{
+    use TrackModelHistory;
+}
+```
+
+Now any changes to this model will be automatically tracked:
+
+```php
+// Creation is tracked
+$user = User::create([
+    'name' => 'John Doe',
+    'email' => 'john@example.com'
+]);
+
+// Updates are tracked
+$user->update(['name' => 'Jane Doe']);
+```
+
+## 🗄️ Using non-Eloquent storage
+
+This package provides a `ModelHistoryRepositoryContract` so you may implement your own repository. Once implemented you can simply override the registered singleton in your app service provider
+
+```php
+$this->app->singleton(ModelHistoryRepositoryContract::class, MyNewChangeRepository::class);
+```
+
+### 🏠 Using ClickHouse
+
+Here's an example using ClickHouse with the Laravel ClickHouse package.
+
+First, install the Laravel ClickHouse package:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-views"
+composer require glushkovds/phpclickhouse-laravel
 ```
 
-## Usage
+Complete the setup from the package.
+
+Create a migration for the `changes` table:
 
 ```php
-$variable = new VendorName\Skeleton();
-echo $variable->echoPhrase('Hello, VendorName!');
+<?php
+
+declare(strict_types=1);
+
+use PhpClickHouseLaravel\RawColumn;
+use PhpClickHouseLaravel\Migration;
+use PhpClickHouseSchemaBuilder\Tables\MergeTree;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        static::createMergeTree('model_histories', fn (MergeTree $table) => $table
+            ->columns([
+                $table->uuid('id')->default(new RawColumn('generateUUIDv4()')),
+                $table->string('model_type'),
+                $table->string('model_id'),
+                $table->string('old'),
+                $table->string('new'),
+                $table->uInt64('auth_id'),
+                $table->datetime('created_at', 3),
+            ])->orderBy('created_at')
+        );
+    }
+
+    public function down(): void
+    {
+        static::write('DROP TABLE model_histories');
+    }
+};
 ```
 
-## Testing
+Create a ClickHouse model for the model history:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use PhpClickHouseLaravel\BaseModel;
+
+class ModelHistory extends BaseModel
+{
+    protected $casts = [
+        'old' => 'array',
+        'new' => 'array',
+    ];
+}
+```
+
+Now publish the config
+
+```
+php artisan vendor:publish --tag="model-history-config"
+```
+
+Now update the `model` with your own
+
+```
+'model' => \App\Models\ModelHistory::class,
+```
+
+## 🧪 Testing
 
 ```bash
 composer test
 ```
 
-## Changelog
+## 📋 Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
 
-## Contributing
+## 👥 Credits
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [:author_name](https://github.com/:author_username)
+- [Patrique Ouimet](https://github.com/patoui)
 - [All Contributors](../../contributors)
 
-## License
+## 📄 License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
